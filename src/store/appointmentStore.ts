@@ -1,7 +1,31 @@
 import { create } from 'zustand';
-import { Appointment, AppointmentStatus } from '../types';
-import { mockAppointments } from '../data/mockData';
+import { Appointment, AppointmentStatus, ServiceType, SERVICE_TYPE_LABELS } from '../types';
+import { allAppointments, mockServices } from '../data/mockData';
 import { isLate, calculateLateMinutes, formatDate } from '../utils/dateUtils';
+import { subDays, format } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+
+export interface DailyRevenue {
+  date: string;
+  label: string;
+  revenue: number;
+}
+
+export interface ServiceStat {
+  type: ServiceType;
+  label: string;
+  count: number;
+  revenue: number;
+  color: string;
+}
+
+export interface TodayOverview {
+  totalAppointments: number;
+  completedCount: number;
+  cancelledCount: number;
+  avgPrice: number;
+  totalRevenue: number;
+}
 
 interface AppointmentState {
   appointments: Appointment[];
@@ -13,10 +37,27 @@ interface AppointmentState {
   updateStatus: (id: string, status: AppointmentStatus) => void;
   checkLateAppointments: () => void;
   dismissLateAlert: () => void;
+  getWeeklyRevenue: () => DailyRevenue[];
+  getServiceStats: () => ServiceStat[];
+  getTodayOverview: () => TodayOverview;
 }
 
+const SERVICE_COLORS: Record<ServiceType, string> = {
+  manicure: '#D4A574',
+  eyelash: '#E8A87F',
+  removal: '#A8D8D0',
+  extension: '#C9A8E8',
+  correction: '#E8C9A0',
+  pedicure: '#F8BBD9',
+};
+
+const getServicePrice = (serviceId: string): number => {
+  const service = mockServices.find((s) => s.id === serviceId);
+  return service?.price || 0;
+};
+
 export const useAppointmentStore = create<AppointmentState>((set, get) => ({
-  appointments: mockAppointments,
+  appointments: allAppointments,
   selectedDate: formatDate(new Date()),
   lateAppointmentIds: [],
   showLateAlert: false,
@@ -73,4 +114,75 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
   },
 
   dismissLateAlert: () => set({ showLateAlert: false }),
+
+  getWeeklyRevenue: (): DailyRevenue[] => {
+    const { appointments } = get();
+    const result: DailyRevenue[] = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const date = subDays(today, i);
+      const dateStr = formatDate(date);
+      const dayApts = appointments.filter(
+        (apt) => apt.date === dateStr && apt.status !== 'cancelled'
+      );
+      const revenue = dayApts.reduce((sum, apt) => sum + getServicePrice(apt.serviceId), 0);
+
+      result.push({
+        date: dateStr,
+        label: i === 0 ? '今天' : format(date, 'EEE', { locale: zhCN }),
+        revenue,
+      });
+    }
+
+    return result;
+  },
+
+  getServiceStats: (): ServiceStat[] => {
+    const { appointments } = get();
+    const stats = new Map<ServiceType, { count: number; revenue: number }>();
+
+    const validApts = appointments.filter((apt) => apt.status !== 'cancelled');
+
+    validApts.forEach((apt) => {
+      const existing = stats.get(apt.serviceType) || { count: 0, revenue: 0 };
+      stats.set(apt.serviceType, {
+        count: existing.count + 1,
+        revenue: existing.revenue + getServicePrice(apt.serviceId),
+      });
+    });
+
+    const result: ServiceStat[] = [];
+    stats.forEach((value, type) => {
+      result.push({
+        type,
+        label: SERVICE_TYPE_LABELS[type],
+        count: value.count,
+        revenue: value.revenue,
+        color: SERVICE_COLORS[type],
+      });
+    });
+
+    return result.sort((a, b) => b.revenue - a.revenue);
+  },
+
+  getTodayOverview: (): TodayOverview => {
+    const { appointments, selectedDate } = get();
+    const todayApts = appointments.filter((apt) => apt.date === selectedDate);
+
+    const totalAppointments = todayApts.length;
+    const completedCount = todayApts.filter((apt) => apt.status === 'completed').length;
+    const cancelledCount = todayApts.filter((apt) => apt.status === 'cancelled').length;
+    const paidApts = todayApts.filter((apt) => apt.status === 'completed');
+    const totalRevenue = paidApts.reduce((sum, apt) => sum + getServicePrice(apt.serviceId), 0);
+    const avgPrice = paidApts.length > 0 ? Math.round(totalRevenue / paidApts.length) : 0;
+
+    return {
+      totalAppointments,
+      completedCount,
+      cancelledCount,
+      avgPrice,
+      totalRevenue,
+    };
+  },
 }));

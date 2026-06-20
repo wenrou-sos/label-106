@@ -8,8 +8,20 @@ import {
   ServiceItem,
 } from '../types';
 import { formatDate, addTimeMinutes } from '../utils/dateUtils';
+import { subDays, format } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 
 const today = formatDate(new Date());
+
+const getWeekDates = (): string[] => {
+  const dates: string[] = [];
+  for (let i = 6; i >= 0; i--) {
+    dates.push(formatDate(subDays(new Date(), i)));
+  }
+  return dates;
+};
+
+const weekDates = getWeekDates();
 
 export const mockUsers: User[] = [
   {
@@ -238,6 +250,46 @@ export const mockAppointments: Appointment[] = [
     isLate: false,
   },
 ];
+
+const generateWeeklyAppointments = (): Appointment[] => {
+  const weeklyApts: Appointment[] = [];
+  const templates = [
+    { customerId: 'c1', customerName: '赵女士', customerPhone: '13911112222', serviceId: 's1', serviceName: '基础美甲', serviceType: 'manicure' as const, technicianId: 't1', technicianName: '张小美', startTime: '10:00', duration: 60 },
+    { customerId: 'c2', customerName: '孙小姐', customerPhone: '13933334444', serviceId: 's3', serviceName: '美睫嫁接', serviceType: 'eyelash' as const, technicianId: 't3', technicianName: '王莉莉', startTime: '11:30', duration: 120 },
+    { customerId: 'c3', customerName: '周女士', customerPhone: '13955556666', serviceId: 's2', serviceName: '光疗美甲', serviceType: 'manicure' as const, technicianId: 't1', technicianName: '张小美', startTime: '14:00', duration: 90 },
+    { customerId: 'c4', customerName: '吴小姐', customerPhone: '13977778888', serviceId: 's5', serviceName: '指甲延长', serviceType: 'extension' as const, technicianId: 't2', technicianName: '李婷婷', startTime: '15:30', duration: 150 },
+    { customerId: 'c5', customerName: '郑女士', customerPhone: '13999990000', serviceId: 's7', serviceName: '脚部护理', serviceType: 'pedicure' as const, technicianId: 't5', technicianName: '刘梦琪', startTime: '09:30', duration: 90 },
+    { customerId: 'c6', customerName: '钱小姐', customerPhone: '13811112222', serviceId: 's6', serviceName: 'Q甲矫正', serviceType: 'correction' as const, technicianId: 't2', technicianName: '李婷婷', startTime: '13:00', duration: 90 },
+    { customerId: 'c7', customerName: '冯女士', customerPhone: '13833334444', serviceId: 's4', serviceName: '卸甲服务', serviceType: 'removal' as const, technicianId: 't3', technicianName: '王莉莉', startTime: '16:30', duration: 30 },
+    { customerId: 'c8', customerName: '陈小姐', customerPhone: '13855556666', serviceId: 's2', serviceName: '光疗美甲', serviceType: 'manicure' as const, technicianId: 't1', technicianName: '张小美', startTime: '17:30', duration: 90 },
+  ];
+
+  weekDates.slice(0, 6).forEach((date, dateIndex) => {
+    const dayApts = templates.slice(0, 4 + (dateIndex % 4));
+    dayApts.forEach((tpl, aptIndex) => {
+      weeklyApts.push({
+        id: `wa_${dateIndex}_${aptIndex}`,
+        customerId: tpl.customerId,
+        customerName: tpl.customerName,
+        customerPhone: tpl.customerPhone,
+        serviceId: tpl.serviceId,
+        serviceName: tpl.serviceName,
+        serviceType: tpl.serviceType,
+        technicianId: tpl.technicianId,
+        technicianName: tpl.technicianName,
+        startTime: tpl.startTime,
+        endTime: addTimeMinutes(tpl.startTime, tpl.duration),
+        date,
+        status: 'completed',
+        isLate: false,
+      });
+    });
+  });
+
+  return weeklyApts;
+};
+
+export const allAppointments: Appointment[] = [...mockAppointments, ...generateWeeklyAppointments()];
 
 export const mockColorSwatches: ColorSwatch[] = [
   {

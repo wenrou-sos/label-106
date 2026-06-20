@@ -5,13 +5,17 @@ import { useTechnicianStore } from '../store/technicianStore';
 import Timeline from '../components/appointments/Timeline';
 import TechnicianCard from '../components/technicians/TechnicianCard';
 import LateAlertModal from '../components/appointments/LateAlertModal';
+import TodayOverview from '../components/dashboard/TodayOverview';
+import RevenueChart from '../components/dashboard/RevenueChart';
+import ServicePieChart from '../components/dashboard/ServicePieChart';
 import { CalendarToday, TrendingUp, People, AttachMoney } from '@mui/icons-material';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 export default function DashboardPage() {
-  const { appointments, selectedDate } = useAppointmentStore();
+  const { appointments, selectedDate, getWeeklyRevenue, getServiceStats, getTodayOverview } =
+    useAppointmentStore();
   const { technicians } = useTechnicianStore();
 
   const todayAppointments = appointments.filter((apt) => apt.date === selectedDate);
@@ -23,6 +27,10 @@ export default function DashboardPage() {
   const animatedRevenue = useAnimatedNumber(totalRevenue);
   const animatedAppointments = useAnimatedNumber(todayAppointments.length);
   const animatedCompleted = useAnimatedNumber(completedToday);
+
+  const weeklyRevenue = getWeeklyRevenue();
+  const serviceStats = getServiceStats();
+  const todayOverview = getTodayOverview();
 
   const stats = [
     {
@@ -160,6 +168,17 @@ export default function DashboardPage() {
             </Box>
           </Grid>
         ))}
+      </Grid>
+
+      <TodayOverview data={todayOverview} />
+
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} lg={8}>
+          <RevenueChart data={weeklyRevenue} />
+        </Grid>
+        <Grid item xs={12} lg={4}>
+          <ServicePieChart data={serviceStats} />
+        </Grid>
       </Grid>
 
       <Box sx={{ mb: 4 }}>
