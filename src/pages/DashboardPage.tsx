@@ -214,7 +214,7 @@ export default function DashboardPage() {
         </Typography>
         <Grid container spacing={3}>
           {technicians.map((tech, index) => (
-            <Grid item xs={12} sm={6} lg={4} xl={2.4} key={tech.id}>
+            <Grid item xs={12} sm={6} lg={4} xl={2} key={tech.id} sx={{ '@media (min-width: 1920px)': { maxWidth: '20%', flexBasis: '20%' } }}>
               <TechnicianCard technician={tech} index={index} />
             </Grid>
           ))}

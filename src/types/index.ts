@@ -131,3 +131,35 @@ export const COLOR_TAG_LABELS: Record<ColorTag, string> = {
   restocking: '补货中',
   expired: '已过期不可用',
 };
+
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface WorkShift {
+  startTime: string;
+  endTime: string;
+}
+
+export interface DaySchedule {
+  isDayOff: boolean;
+  shifts: WorkShift[];
+}
+
+export interface TechnicianSchedule {
+  technicianId: string;
+  weekSchedule: Record<DayOfWeek, DaySchedule>;
+}
+
+export const DAY_OF_WEEK_LABELS: Record<DayOfWeek, string> = {
+  0: '周一',
+  1: '周二',
+  2: '周三',
+  3: '周四',
+  4: '周五',
+  5: '周六',
+  6: '周日',
+};
+
+export const DEFAULT_WORK_START = '09:00';
+export const DEFAULT_WORK_END = '21:00';
+export const LUNCH_BREAK_START = '12:00';
+export const LUNCH_BREAK_END = '13:00';

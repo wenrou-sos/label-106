@@ -16,11 +16,13 @@ import {
   PersonSearch,
   Logout,
   AutoAwesome,
+  Schedule,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
   { path: '/dashboard', label: '今日预约', icon: CalendarToday },
+  { path: '/dashboard/schedule', label: '排班管理', icon: Schedule },
   { path: '/dashboard/technicians', label: '美甲师状态', icon: PeopleAlt },
   { path: '/dashboard/color-palette', label: '色板管理', icon: Palette },
   { path: '/dashboard/customers', label: '顾客档案', icon: PersonSearch },
@@ -82,7 +84,7 @@ export default function Sidebar() {
       </Box>
 
       <List sx={{ px: 2, flex: 1 }}>
-        {navItems.map((item, index) => (
+        {navItems.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
             <NavLink
               to={item.path}

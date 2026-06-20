@@ -6,6 +6,14 @@ import {
   Customer,
   WorkPhoto,
   ServiceItem,
+  TechnicianSchedule,
+  DayOfWeek,
+  DaySchedule,
+  WorkShift,
+  DEFAULT_WORK_START,
+  DEFAULT_WORK_END,
+  LUNCH_BREAK_START,
+  LUNCH_BREAK_END,
 } from '../types';
 import { formatDate, addTimeMinutes } from '../utils/dateUtils';
 import { startOfWeek, addDays } from 'date-fns';
@@ -588,5 +596,90 @@ export const mockWorkPhotos: WorkPhoto[] = [
     serviceType: 'extension',
     createdAt: '2025-06-08 13:15',
     description: '延长甲 + 裸色系',
+  },
+];
+
+const createDefaultDaySchedule = (): DaySchedule => ({
+  isDayOff: false,
+  shifts: [
+    { startTime: DEFAULT_WORK_START, endTime: LUNCH_BREAK_START },
+    { startTime: LUNCH_BREAK_END, endTime: DEFAULT_WORK_END },
+  ],
+});
+
+const createPartTimeMorning = (): DaySchedule => ({
+  isDayOff: false,
+  shifts: [{ startTime: DEFAULT_WORK_START, endTime: LUNCH_BREAK_START }],
+});
+
+const createPartTimeAfternoon = (): DaySchedule => ({
+  isDayOff: false,
+  shifts: [{ startTime: LUNCH_BREAK_END, endTime: DEFAULT_WORK_END }],
+});
+
+const createDayOff = (): DaySchedule => ({
+  isDayOff: true,
+  shifts: [] as WorkShift[],
+});
+
+const createDefaultWeekSchedule = (): Record<DayOfWeek, DaySchedule> => ({
+  0: createDefaultDaySchedule(),
+  1: createDefaultDaySchedule(),
+  2: createDefaultDaySchedule(),
+  3: createDefaultDaySchedule(),
+  4: createDefaultDaySchedule(),
+  5: createDefaultDaySchedule(),
+  6: createDayOff(),
+});
+
+export const mockSchedules: TechnicianSchedule[] = [
+  {
+    technicianId: 't1',
+    weekSchedule: {
+      ...createDefaultWeekSchedule(),
+      3: {
+        isDayOff: false,
+        shifts: [
+          { startTime: '09:00', endTime: '12:00' },
+          { startTime: '14:00', endTime: '18:00' },
+        ],
+      },
+    },
+  },
+  {
+    technicianId: 't2',
+    weekSchedule: {
+      ...createDefaultWeekSchedule(),
+      2: createDayOff(),
+      5: createPartTimeMorning(),
+    },
+  },
+  {
+    technicianId: 't3',
+    weekSchedule: {
+      ...createDefaultWeekSchedule(),
+      1: createPartTimeAfternoon(),
+      4: createDayOff(),
+    },
+  },
+  {
+    technicianId: 't4',
+    weekSchedule: {
+      0: createPartTimeMorning(),
+      1: createPartTimeMorning(),
+      2: createDayOff(),
+      3: createPartTimeMorning(),
+      4: createPartTimeMorning(),
+      5: createDefaultDaySchedule(),
+      6: createDayOff(),
+    },
+  },
+  {
+    technicianId: 't5',
+    weekSchedule: {
+      ...createDefaultWeekSchedule(),
+      6: createDefaultDaySchedule(),
+      0: createDayOff(),
+    },
   },
 ];

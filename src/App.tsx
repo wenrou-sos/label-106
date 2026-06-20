@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage';
 import TechniciansPage from './pages/TechniciansPage';
 import ColorPalettePage from './pages/ColorPalettePage';
 import CustomersPage from './pages/CustomersPage';
+import SchedulePage from './pages/SchedulePage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
@@ -48,6 +49,16 @@ export default function App() {
           <ProtectedRoute>
             <AppLayout>
               <CustomersPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard/schedule"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <SchedulePage />
             </AppLayout>
           </ProtectedRoute>
         }

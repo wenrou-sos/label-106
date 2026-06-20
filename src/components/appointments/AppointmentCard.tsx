@@ -6,6 +6,7 @@ import { AccessTime, Person, ContentCut } from '@mui/icons-material';
 interface AppointmentCardProps {
   appointment: Appointment;
   onClick?: () => void;
+  compact?: boolean;
 }
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -18,9 +19,92 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
   late: { bg: 'rgba(232, 138, 127, 0.15)', text: '#D06B5E', border: 'rgba(232, 138, 127, 0.35)' },
 };
 
-export default function AppointmentCard({ appointment, onClick }: AppointmentCardProps) {
+export default function AppointmentCard({ appointment, onClick, compact }: AppointmentCardProps) {
   const colors = statusColors[appointment.status] || statusColors.pending;
   const isLate = appointment.isLate;
+
+  if (compact) {
+    return (
+      <Box
+        component={motion.div}
+        whileHover={{ y: -1 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClick}
+        sx={{
+          position: 'relative',
+          p: 1.5,
+          borderRadius: '10px',
+          border: `1px solid ${colors.border}`,
+          background: isLate
+            ? `linear-gradient(135deg, rgba(232,138,127,0.08) 0%, rgba(245,196,190,0.15) 100%)`
+            : `linear-gradient(135deg, ${colors.bg} 0%, rgba(255,255,255,0.9) 100%)`,
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.5,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography
+            sx={{
+              fontWeight: 600,
+              fontSize: '0.75rem',
+              color: '#4A3728',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              flex: 1,
+              mr: 0.5,
+            }}
+          >
+            {appointment.customerName}
+          </Typography>
+          <Chip
+            label={
+              isLate
+                ? `迟到${appointment.lateMinutes || ''}分`
+                : APPOINTMENT_STATUS_LABELS[appointment.status]
+            }
+            size="small"
+            sx={{
+              height: 18,
+              fontSize: '0.65rem',
+              fontWeight: 600,
+              background: isLate
+                ? 'linear-gradient(135deg, #E88A7F 0%, #F5C4BE 100%)'
+                : colors.bg,
+              color: isLate ? '#fff' : colors.text,
+              border: 'none',
+              '& .MuiChip-label': { px: 0.75 },
+            }}
+          />
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <ContentCut sx={{ fontSize: 12, color: '#8B7D75' }} />
+          <Typography variant="caption" sx={{ color: '#6B5D55', fontSize: '0.6875rem' }}>
+            {SERVICE_TYPE_LABELS[appointment.serviceType]}
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <AccessTime sx={{ fontSize: 12, color: isLate ? '#E88A7F' : '#8B7D75' }} />
+          <Typography
+            variant="caption"
+            sx={{
+              color: isLate ? '#D06B5E' : '#6B5D55',
+              fontSize: '0.6875rem',
+              fontWeight: isLate ? 600 : 400,
+            }}
+          >
+              {appointment.startTime} - {appointment.endTime}
+            </Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box

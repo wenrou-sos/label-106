@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { Appointment, AppointmentStatus, ServiceType, SERVICE_TYPE_LABELS } from '../types';
 import { allAppointments, mockServices } from '../data/mockData';
-import { isLate, calculateLateMinutes, formatDate } from '../utils/dateUtils';
+import { isLate, calculateLateMinutes, formatDate, addTimeMinutes } from '../utils/dateUtils';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { useScheduleStore } from './scheduleStore';
 
 export interface DailyRevenue {
   date: string;
@@ -27,13 +28,19 @@ export interface TodayOverview {
   totalRevenue: number;
 }
 
+export interface AddAppointmentResult {
+  success: boolean;
+  error?: string;
+}
+
 interface AppointmentState {
   appointments: Appointment[];
   selectedDate: string;
   lateAppointmentIds: string[];
   showLateAlert: boolean;
   setSelectedDate: (date: string) => void;
-  addAppointment: (appointment: Appointment) => void;
+  addAppointment: (appointment: Appointment) => AddAppointmentResult;
+  canAddAppointment: (technicianId: string, date: string, startTime: string, duration: number) => AddAppointmentResult;
   updateStatus: (id: string, status: AppointmentStatus) => void;
   checkLateAppointments: () => void;
   dismissLateAlert: () => void;
@@ -64,10 +71,67 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
 
   setSelectedDate: (date: string) => set({ selectedDate: date }),
 
-  addAppointment: (appointment: Appointment) =>
+  canAddAppointment: (technicianId: string, date: string, startTime: string, duration: number): AddAppointmentResult => {
+    const { appointments } = get();
+
+    const { isTimeSlotAvailable, getDaySchedule } = useScheduleStore.getState();
+
+    const daySchedule = getDaySchedule(technicianId, date);
+    if (!daySchedule || daySchedule.isDayOff) {
+      return { success: false, error: '该美甲师本日休息，无法预约' };
+    }
+
+    if (!isTimeSlotAvailable(technicianId, date, startTime, duration)) {
+      return { success: false, error: '该时段不在美甲师工作时间内' };
+    }
+
+    const endTime = addTimeMinutes(startTime, duration);
+    const timeToMinutes = (time: string): number => {
+      const [h, m] = time.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const startMinutes = timeToMinutes(startTime);
+    const endMinutes = timeToMinutes(endTime);
+
+    const conflictingApt = appointments.find((apt) => {
+      if (apt.date !== date || apt.technicianId !== technicianId) return false;
+      if (apt.status === 'cancelled') return false;
+
+      const aptStartMinutes = timeToMinutes(apt.startTime);
+      const aptEndMinutes = timeToMinutes(apt.endTime);
+
+      return startMinutes < aptEndMinutes && endMinutes > aptStartMinutes;
+    });
+
+    if (conflictingApt) {
+      return { success: false, error: '该时段已有其他预约' };
+    }
+
+    return { success: true };
+  },
+
+  addAppointment: (appointment: Appointment): AddAppointmentResult => {
+    const service = mockServices.find((s) => s.id === appointment.serviceId);
+    const duration = service?.duration || 60;
+
+    const result = get().canAddAppointment(
+      appointment.technicianId,
+      appointment.date,
+      appointment.startTime,
+      duration
+    );
+
+    if (!result.success) {
+      return result;
+    }
+
     set((state) => ({
       appointments: [...state.appointments, appointment],
-    })),
+    }));
+
+    return { success: true };
+  },
 
   updateStatus: (id: string, status: AppointmentStatus) =>
     set((state) => ({
