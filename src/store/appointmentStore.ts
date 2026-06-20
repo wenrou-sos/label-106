@@ -42,6 +42,7 @@ interface AppointmentState {
   addAppointment: (appointment: Appointment) => AddAppointmentResult;
   canAddAppointment: (technicianId: string, date: string, startTime: string, duration: number) => AddAppointmentResult;
   updateStatus: (id: string, status: AppointmentStatus) => void;
+  updateNotes: (id: string, notes: string) => void;
   checkLateAppointments: () => void;
   dismissLateAlert: () => void;
   getWeeklyRevenue: () => DailyRevenue[];
@@ -137,6 +138,13 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
     set((state) => ({
       appointments: state.appointments.map((apt) =>
         apt.id === id ? { ...apt, status } : apt
+      ),
+    })),
+
+  updateNotes: (id: string, notes: string) =>
+    set((state) => ({
+      appointments: state.appointments.map((apt) =>
+        apt.id === id ? { ...apt, notes: notes.trim() || undefined } : apt
       ),
     })),
 

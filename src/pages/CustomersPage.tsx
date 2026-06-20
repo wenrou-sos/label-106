@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -11,12 +11,15 @@ import {
   Chip,
   Tab,
   Tabs,
+  Tooltip,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../store/customerStore';
+import { useAppointmentStore } from '../store/appointmentStore';
 import CustomerCard from '../components/customers/CustomerCard';
 import WorkGallery from '../components/customers/WorkGallery';
 import PhotoUploader from '../components/customers/PhotoUploader';
+import AppointmentNotesDialog from '../components/appointments/AppointmentNotesDialog';
 import {
   Search,
   Close,
@@ -27,9 +30,14 @@ import {
   Favorite,
   Collections,
   AddAPhoto,
+  NoteAlt,
+  AccessTime,
+  ContentCut,
+  EditNote,
 } from '@mui/icons-material';
-import { Customer, WorkPhoto } from '../types';
+import { Customer, WorkPhoto, Appointment } from '../types';
 import { maskPhone } from '../utils/dateUtils';
+import { SERVICE_TYPE_LABELS, APPOINTMENT_STATUS_LABELS } from '../types';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -59,8 +67,11 @@ export default function CustomersPage() {
     addWorkPhoto,
     getCustomerPhotos,
   } = useCustomerStore();
+  const { appointments, updateNotes } = useAppointmentStore();
 
   const [tabValue, setTabValue] = useState(0);
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   const filteredCustomers = customers.filter(
     (c) =>
@@ -75,6 +86,20 @@ export default function CustomersPage() {
 
   const customerPhotos = selectedCustomer ? getCustomerPhotos(selectedCustomer.id) : [];
 
+  const customerAppointments = useMemo(() => {
+    if (!selectedCustomer) return [];
+    return appointments
+      .filter((apt) => apt.customerId === selectedCustomer.id)
+      .sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return b.startTime.localeCompare(a.startTime);
+      });
+  }, [appointments, selectedCustomer]);
+
+  const customerNotesList = useMemo(() => {
+    return customerAppointments.filter((apt) => apt.notes && apt.notes.trim().length > 0);
+  }, [customerAppointments]);
+
   const stats = [
     { label: '顾客总数', value: totalCustomers, icon: Person, color: '#D4A574' },
     { label: '总到店次数', value: totalVisits, icon: CalendarToday, color: '#A8D8D0' },
@@ -88,6 +113,20 @@ export default function CustomersPage() {
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+  };
+
+  const handleOpenNotesDialog = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setNotesDialogOpen(true);
+  };
+
+  const handleCloseNotesDialog = () => {
+    setNotesDialogOpen(false);
+    setSelectedAppointment(null);
+  };
+
+  const handleSaveNotes = (id: string, notes: string) => {
+    updateNotes(id, notes);
   };
 
   return (
@@ -260,9 +299,12 @@ export default function CustomersPage() {
                 <CustomerDetailPanel
                   customer={selectedCustomer}
                   photos={customerPhotos}
+                  appointments={customerAppointments}
+                  notesList={customerNotesList}
                   tabValue={tabValue}
                   onTabChange={handleTabChange}
                   onAddPhoto={handleAddWorkPhoto}
+                  onEditNotes={handleOpenNotesDialog}
                 />
               </Box>
             ) : (
@@ -300,6 +342,13 @@ export default function CustomersPage() {
           </AnimatePresence>
         </Grid>
       </Grid>
+
+      <AppointmentNotesDialog
+        open={notesDialogOpen}
+        appointment={selectedAppointment}
+        onClose={handleCloseNotesDialog}
+        onSave={handleSaveNotes}
+      />
     </Box>
   );
 }
@@ -307,17 +356,23 @@ export default function CustomersPage() {
 interface CustomerDetailPanelProps {
   customer: Customer;
   photos: WorkPhoto[];
+  appointments: Appointment[];
+  notesList: Appointment[];
   tabValue: number;
   onTabChange: (event: React.SyntheticEvent, newValue: number) => void;
   onAddPhoto: (photo: WorkPhoto) => void;
+  onEditNotes: (appointment: Appointment) => void;
 }
 
 function CustomerDetailPanel({
   customer,
   photos,
+  appointments,
+  notesList,
   tabValue,
   onTabChange,
   onAddPhoto,
+  onEditNotes,
 }: CustomerDetailPanelProps) {
   return (
     <Box>
@@ -463,6 +518,11 @@ function CustomerDetailPanel({
             iconPosition="start"
             label="上传作品"
           />
+          <Tab
+            icon={<NoteAlt sx={{ fontSize: 18 }} />}
+            iconPosition="start"
+            label={`历史备注 (${notesList.length})`}
+          />
         </Tabs>
       </Box>
 
@@ -473,6 +533,392 @@ function CustomerDetailPanel({
       <TabPanel value={tabValue} index={1}>
         <PhotoUploader onUpload={onAddPhoto} customerId={customer.id} />
       </TabPanel>
+
+      <TabPanel value={tabValue} index={2}>
+        <CustomerNotesHistory
+          notesList={notesList}
+          appointments={appointments}
+          onEditNotes={onEditNotes}
+        />
+      </TabPanel>
+    </Box>
+  );
+}
+
+interface CustomerNotesHistoryProps {
+  notesList: Appointment[];
+  appointments: Appointment[];
+  onEditNotes: (appointment: Appointment) => void;
+}
+
+function CustomerNotesHistory({
+  notesList,
+  appointments,
+  onEditNotes,
+}: CustomerNotesHistoryProps) {
+  const allAptsWithNotesBtn = appointments;
+
+  if (notesList.length === 0 && appointments.length === 0) {
+    return (
+      <Box
+        sx={{
+          py: 12,
+          textAlign: 'center',
+          borderRadius: '16px',
+          background: 'rgba(248, 232, 236, 0.3)',
+          border: '1px dashed rgba(212, 165, 116, 0.2)',
+        }}
+      >
+        <NoteAlt sx={{ fontSize: 48, color: '#D4A574', mb: 2 }} />
+        <Typography
+          sx={{
+            fontFamily: '"Playfair Display", serif',
+            fontSize: '1.125rem',
+            fontWeight: 600,
+            color: '#4A3728',
+            mb: 1,
+          }}
+        >
+          暂无历史记录
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#8B7D75' }}>
+          该顾客还没有预约记录，也没有任何备注信息
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      {notesList.length > 0 && (
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #C9A8E8 0%, #E8D5F5 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <NoteAlt sx={{ fontSize: 18, color: '#fff' }} />
+            </Box>
+            <Typography
+              sx={{
+                fontFamily: '"Playfair Display", serif',
+                fontSize: '1.125rem',
+                fontWeight: 600,
+                color: '#4A3728',
+              }}
+            >
+              重要备注汇总 ({notesList.length}条)
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {notesList.map((apt) => (
+              <Box
+                key={apt.id}
+                sx={{
+                  p: 2.5,
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, rgba(201,168,232,0.1) 0%, rgba(248,232,236,0.3) 100%)',
+                  border: '1px solid rgba(201, 168, 232, 0.2)',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip
+                      label={apt.date}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        background: '#fff',
+                        color: '#9A6F42',
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(212, 165, 116, 0.2)',
+                      }}
+                    />
+                    <Chip
+                      label={`${apt.startTime}-${apt.endTime}`}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        background: 'rgba(168, 216, 208, 0.15)',
+                        color: '#3E8E82',
+                        fontWeight: 500,
+                        fontSize: '0.7rem',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Chip
+                      label={apt.technicianName}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        background: 'rgba(212, 165, 116, 0.15)',
+                        color: '#9A6F42',
+                        fontWeight: 500,
+                        fontSize: '0.7rem',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Chip
+                      label={SERVICE_TYPE_LABELS[apt.serviceType]}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        background: 'rgba(248, 232, 236, 0.6)',
+                        color: '#A06B75',
+                        fontWeight: 500,
+                        fontSize: '0.7rem',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Chip
+                      label={APPOINTMENT_STATUS_LABELS[apt.status]}
+                      size="small"
+                      sx={{
+                        height: 22,
+                        background:
+                          apt.status === 'completed'
+                            ? 'rgba(168, 216, 208, 0.2)'
+                            : apt.status === 'cancelled'
+                            ? 'rgba(139, 125, 117, 0.15)'
+                            : 'rgba(212, 165, 116, 0.2)',
+                        color:
+                          apt.status === 'completed'
+                            ? '#3E8E82'
+                            : apt.status === 'cancelled'
+                            ? '#8B7D75'
+                            : '#9A6F42',
+                        fontWeight: 500,
+                        fontSize: '0.7rem',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => onEditNotes(apt)}
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      minWidth: 28,
+                      background: 'rgba(255,255,255,0.8)',
+                      color: '#7A5D94',
+                      borderRadius: '8px',
+                      ml: 1,
+                      flexShrink: 0,
+                      '&:hover': {
+                        background: '#fff',
+                        color: '#5E4A78',
+                      },
+                    }}
+                  >
+                    <EditNote sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
+                <Typography
+                  sx={{
+                    color: '#4A3728',
+                    fontSize: '0.9375rem',
+                    lineHeight: 1.7,
+                    fontWeight: 500,
+                  }}
+                >
+                  {apt.notes}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Box
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '10px',
+              background: 'rgba(212, 165, 116, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CalendarToday sx={{ fontSize: 18, color: '#D4A574' }} />
+          </Box>
+          <Typography
+            sx={{
+              fontFamily: '"Playfair Display", serif',
+              fontSize: '1.125rem',
+              fontWeight: 600,
+              color: '#4A3728',
+            }}
+          >
+            全部预约记录 ({allAptsWithNotesBtn.length}次)
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            borderRadius: '16px',
+            background: '#fff',
+            border: '1px solid rgba(212, 165, 116, 0.1)',
+            overflow: 'hidden',
+          }}
+        >
+          {allAptsWithNotesBtn.map((apt, idx) => (
+            <Box key={apt.id}>
+              <Box
+                sx={{
+                  p: 2.5,
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 2,
+                  '&:hover': {
+                    background: 'rgba(212, 165, 116, 0.04)',
+                  },
+                }}
+              >
+                <Box
+                  sx={{
+                    flex: '0 0 90px',
+                    pt: 0.25,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontFamily: '"Playfair Display", serif',
+                      fontSize: '0.9375rem',
+                      fontWeight: 600,
+                      color: '#D4A574',
+                      mb: 0.25,
+                    }}
+                  >
+                    {apt.date.slice(5)}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#8B7D75' }}>
+                    {apt.startTime}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                    <Typography
+                      sx={{
+                        fontWeight: 600,
+                        color: '#4A3728',
+                        fontSize: '0.9375rem',
+                      }}
+                    >
+                      {apt.serviceName}
+                    </Typography>
+                    <Chip
+                      label={SERVICE_TYPE_LABELS[apt.serviceType]}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        background: 'rgba(248, 232, 236, 0.5)',
+                        color: '#A06B75',
+                        fontWeight: 500,
+                        fontSize: '0.65rem',
+                        borderRadius: '6px',
+                      }}
+                    />
+                    <Chip
+                      label={APPOINTMENT_STATUS_LABELS[apt.status]}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        background:
+                          apt.status === 'completed'
+                            ? 'rgba(168, 216, 208, 0.15)'
+                            : apt.status === 'cancelled'
+                            ? 'rgba(139, 125, 117, 0.1)'
+                            : 'rgba(212, 165, 116, 0.15)',
+                        color:
+                          apt.status === 'completed'
+                            ? '#3E8E82'
+                            : apt.status === 'cancelled'
+                            ? '#8B7D75'
+                            : '#9A6F42',
+                        fontWeight: 500,
+                        fontSize: '0.65rem',
+                        borderRadius: '6px',
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: apt.notes ? 1 : 0 }}>
+                    <Person sx={{ fontSize: 14, color: '#8B7D75' }} />
+                    <Typography variant="caption" sx={{ color: '#6B5D55' }}>
+                      {apt.technicianName}
+                    </Typography>
+                    <Box sx={{ mx: 0.5, width: 3, height: 3, borderRadius: 1.5, background: '#D4D0CB' }} />
+                    <AccessTime sx={{ fontSize: 14, color: '#8B7D75' }} />
+                    <Typography variant="caption" sx={{ color: '#6B5D55' }}>
+                      {apt.startTime} - {apt.endTime}
+                    </Typography>
+                  </Box>
+                  {apt.notes ? (
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        borderRadius: '10px',
+                        background: 'rgba(201, 168, 232, 0.08)',
+                        border: '1px dashed rgba(201, 168, 232, 0.25)',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 1,
+                      }}
+                    >
+                      <NoteAlt sx={{ fontSize: 14, color: '#9E7DB8', mt: 0.25, flexShrink: 0 }} />
+                      <Typography
+                        variant="caption"
+                        sx={{ color: '#7A5D94', fontSize: '0.8125rem', lineHeight: 1.6, flex: 1 }}
+                      >
+                        {apt.notes}
+                      </Typography>
+                    </Box>
+                  ) : null}
+                </Box>
+                <Box sx={{ flexShrink: 0, pt: 0.25 }}>
+                  <Tooltip title={apt.notes ? '编辑备注' : '添加备注'} placement="top">
+                    <IconButton
+                      size="small"
+                      onClick={() => onEditNotes(apt)}
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        minWidth: 32,
+                        background: apt.notes
+                          ? 'rgba(201, 168, 232, 0.1)'
+                          : 'rgba(212, 165, 116, 0.08)',
+                        color: apt.notes ? '#9E7DB8' : '#D4A574',
+                        borderRadius: '10px',
+                        '&:hover': {
+                          background: apt.notes
+                            ? 'rgba(201, 168, 232, 0.2)'
+                            : 'rgba(212, 165, 116, 0.15)',
+                        },
+                      }}
+                    >
+                      <NoteAlt sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+              {idx < allAptsWithNotesBtn.length - 1 && (
+                <Divider sx={{ mx: 2.5, borderColor: 'rgba(212, 165, 116, 0.08)' }} />
+              )}
+            </Box>
+          ))}
+        </Box>
+      </Box>
     </Box>
   );
 }

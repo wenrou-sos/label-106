@@ -1,12 +1,13 @@
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import { motion } from 'framer-motion';
 import { Appointment, APPOINTMENT_STATUS_LABELS, SERVICE_TYPE_LABELS } from '../../types';
-import { AccessTime, Person, ContentCut } from '@mui/icons-material';
+import { AccessTime, Person, ContentCut, NoteAlt } from '@mui/icons-material';
 
 interface AppointmentCardProps {
   appointment: Appointment;
   onClick?: () => void;
   compact?: boolean;
+  onNotesClick?: () => void;
 }
 
 const statusColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -19,9 +20,64 @@ const statusColors: Record<string, { bg: string; text: string; border: string }>
   late: { bg: 'rgba(232, 138, 127, 0.15)', text: '#D06B5E', border: 'rgba(232, 138, 127, 0.35)' },
 };
 
-export default function AppointmentCard({ appointment, onClick, compact }: AppointmentCardProps) {
+export default function AppointmentCard({ appointment, onClick, compact, onNotesClick }: AppointmentCardProps) {
   const colors = statusColors[appointment.status] || statusColors.pending;
   const isLate = appointment.isLate;
+  const hasNotes = !!appointment.notes;
+
+  const NotesBadge = () => (
+    hasNotes ? (
+      <Tooltip title={appointment.notes} placement="top">
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNotesClick?.();
+          }}
+          sx={{
+            width: 20,
+            height: 20,
+            minWidth: 20,
+            background: 'linear-gradient(135deg, #C9A8E8 0%, #E8D5F5 100%)',
+            color: '#fff',
+            borderRadius: '6px',
+            boxShadow: '0 2px 6px rgba(201, 168, 232, 0.3)',
+            flexShrink: 0,
+            '&:hover': {
+              background: 'linear-gradient(135deg, #B897D7 0%, #D6C3E4 100%)',
+            },
+          }}
+        >
+          <NoteAlt sx={{ fontSize: 12 }} />
+        </IconButton>
+      </Tooltip>
+    ) : (
+      <Tooltip title="添加备注" placement="top">
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNotesClick?.();
+          }}
+          sx={{
+            width: 20,
+            height: 20,
+            minWidth: 20,
+            background: 'rgba(139, 125, 117, 0.08)',
+            color: '#8B7D75',
+            borderRadius: '6px',
+            flexShrink: 0,
+            '&:hover': {
+              background: 'rgba(212, 165, 116, 0.15)',
+              color: '#D4A574',
+            },
+          }}
+        >
+          <NoteAlt sx={{ fontSize: 12 }} />
+        </IconButton>
+      </Tooltip>
+    )
+  );
 
   if (compact) {
     return (
@@ -61,25 +117,28 @@ export default function AppointmentCard({ appointment, onClick, compact }: Appoi
           >
             {appointment.customerName}
           </Typography>
-          <Chip
-            label={
-              isLate
-                ? `迟到${appointment.lateMinutes || ''}分`
-                : APPOINTMENT_STATUS_LABELS[appointment.status]
-            }
-            size="small"
-            sx={{
-              height: 18,
-              fontSize: '0.65rem',
-              fontWeight: 600,
-              background: isLate
-                ? 'linear-gradient(135deg, #E88A7F 0%, #F5C4BE 100%)'
-                : colors.bg,
-              color: isLate ? '#fff' : colors.text,
-              border: 'none',
-              '& .MuiChip-label': { px: 0.75 },
-            }}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <NotesBadge />
+            <Chip
+              label={
+                isLate
+                  ? `迟到${appointment.lateMinutes || ''}分`
+                  : APPOINTMENT_STATUS_LABELS[appointment.status]
+              }
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                background: isLate
+                  ? 'linear-gradient(135deg, #E88A7F 0%, #F5C4BE 100%)'
+                  : colors.bg,
+                color: isLate ? '#fff' : colors.text,
+                border: 'none',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          </Box>
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -147,30 +206,60 @@ export default function AppointmentCard({ appointment, onClick, compact }: Appoi
         >
           {appointment.customerName}
         </Typography>
-        <Chip
-          label={
-            isLate
-              ? `迟到${appointment.lateMinutes || ''}分钟`
-              : APPOINTMENT_STATUS_LABELS[appointment.status]
-          }
-          size="small"
-          sx={{
-            height: 24,
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            background: isLate
-              ? 'linear-gradient(135deg, #E88A7F 0%, #F5C4BE 100%)'
-              : colors.bg,
-            color: isLate ? '#fff' : colors.text,
-            border: 'none',
-          }}
-        />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title={hasNotes ? appointment.notes : '添加备注'} placement="top">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNotesClick?.();
+              }}
+              sx={{
+                width: 28,
+                height: 28,
+                minWidth: 28,
+                background: hasNotes
+                  ? 'linear-gradient(135deg, #C9A8E8 0%, #E8D5F5 100%)'
+                  : 'rgba(139, 125, 117, 0.08)',
+                color: hasNotes ? '#fff' : '#8B7D75',
+                borderRadius: '8px',
+                boxShadow: hasNotes ? '0 2px 8px rgba(201, 168, 232, 0.3)' : 'none',
+                '&:hover': {
+                  background: hasNotes
+                    ? 'linear-gradient(135deg, #B897D7 0%, #D6C3E4 100%)'
+                    : 'rgba(212, 165, 116, 0.15)',
+                  color: hasNotes ? '#fff' : '#D4A574',
+                },
+              }}
+            >
+              <NoteAlt sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+          <Chip
+            label={
+              isLate
+                ? `迟到${appointment.lateMinutes || ''}分钟`
+                : APPOINTMENT_STATUS_LABELS[appointment.status]
+            }
+            size="small"
+            sx={{
+              height: 24,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              background: isLate
+                ? 'linear-gradient(135deg, #E88A7F 0%, #F5C4BE 100%)'
+                : colors.bg,
+              color: isLate ? '#fff' : colors.text,
+              border: 'none',
+            }}
+          />
+        </Box>
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
         <ContentCut sx={{ fontSize: 16, color: '#8B7D75' }} />
         <Typography variant="body2" sx={{ color: '#6B5D55', fontSize: '0.8125rem' }}>
-          {SERVICE_TYPE_LABELS[appointment.serviceType]}
+          {SERVICE_TYPE_LABELS[appointment.serviceType]} · {appointment.serviceName}
         </Typography>
       </Box>
 
@@ -181,7 +270,7 @@ export default function AppointmentCard({ appointment, onClick, compact }: Appoi
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: hasNotes ? 1.5 : 0 }}>
         <AccessTime sx={{ fontSize: 16, color: isLate ? '#E88A7F' : '#8B7D75' }} />
         <Typography
           variant="body2"
@@ -194,6 +283,28 @@ export default function AppointmentCard({ appointment, onClick, compact }: Appoi
           {appointment.startTime} - {appointment.endTime}
         </Typography>
       </Box>
+
+      {hasNotes && (
+        <Box
+          sx={{
+            mt: 1,
+            p: 1.5,
+            borderRadius: '10px',
+            background: 'rgba(201, 168, 232, 0.1)',
+            border: '1px dashed rgba(201, 168, 232, 0.3)',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+            <NoteAlt sx={{ fontSize: 14, color: '#9E7DB8', mt: 0.25, flexShrink: 0 }} />
+            <Typography
+              variant="caption"
+              sx={{ color: '#7A5D94', fontSize: '0.75rem', lineHeight: 1.6 }}
+            >
+              {appointment.notes}
+            </Typography>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }

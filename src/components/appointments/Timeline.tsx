@@ -7,6 +7,7 @@ import { useScheduleStore, isTimeInShift } from '../../store/scheduleStore';
 import { generateTimeSlots } from '../../utils/dateUtils';
 import { Appointment, Technician } from '../../types';
 import AppointmentCard from './AppointmentCard';
+import AppointmentNotesDialog from './AppointmentNotesDialog';
 
 const slotToMinutes = (time: string): number => {
   const [h, m] = time.split(':').map(Number);
@@ -24,16 +25,32 @@ const isAppointmentInSlot = (apt: Appointment, slot: string): boolean => {
 type ViewMode = 'time' | 'technician';
 
 export default function Timeline() {
-  const { appointments, selectedDate } = useAppointmentStore();
+  const { appointments, selectedDate, updateNotes } = useAppointmentStore();
   const { technicians } = useTechnicianStore();
   const { getDaySchedule } = useScheduleStore();
   const [viewMode, setViewMode] = useState<ViewMode>('time');
   const timeSlots = useMemo(() => generateTimeSlots(9, 21, 30), []);
+  const [notesDialogOpen, setNotesDialogOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   const todayAppointments = useMemo(
     () => appointments.filter((apt) => apt.date === selectedDate),
     [appointments, selectedDate]
   );
+
+  const handleOpenNotesDialog = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setNotesDialogOpen(true);
+  };
+
+  const handleCloseNotesDialog = () => {
+    setNotesDialogOpen(false);
+    setSelectedAppointment(null);
+  };
+
+  const handleSaveNotes = (id: string, notes: string) => {
+    updateNotes(id, notes);
+  };
 
   const getAppointmentsForSlot = (slotStart: string): Appointment[] => {
     return todayAppointments.filter((apt) => isAppointmentInSlot(apt, slotStart));
@@ -236,7 +253,10 @@ export default function Timeline() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: slotIndex * 0.02 + aptIndex * 0.05 }}
                   >
-                    <AppointmentCard appointment={apt} />
+                    <AppointmentCard
+                      appointment={apt}
+                      onNotesClick={() => handleOpenNotesDialog(apt)}
+                    />
                   </motion.div>
                 ))
               )}
@@ -420,7 +440,11 @@ export default function Timeline() {
                             animate={{ opacity: 1, scale: 1 }}
                             style={{ width: '100%' }}
                           >
-                            <AppointmentCard appointment={apt} compact />
+                            <AppointmentCard
+                              appointment={apt}
+                              compact
+                              onNotesClick={() => handleOpenNotesDialog(apt)}
+                            />
                           </motion.div>
                         ))
                       ) : (
@@ -505,6 +529,13 @@ export default function Timeline() {
       </Box>
 
       {viewMode === 'time' ? renderTimeView() : renderTechnicianView()}
+
+      <AppointmentNotesDialog
+        open={notesDialogOpen}
+        appointment={selectedAppointment}
+        onClose={handleCloseNotesDialog}
+        onSave={handleSaveNotes}
+      />
     </Box>
   );
 }

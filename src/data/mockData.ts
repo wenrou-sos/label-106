@@ -128,6 +128,7 @@ export const mockAppointments: Appointment[] = [
     date: today,
     status: 'completed',
     isLate: false,
+    notes: '对紫外线过敏，请务必使用防紫外线底油。上次做的光疗保持了3周，效果很好。',
   },
   {
     id: 'a2',
@@ -144,6 +145,7 @@ export const mockAppointments: Appointment[] = [
     date: today,
     status: 'completed',
     isLate: false,
+    notes: '喜欢自然款，不要太浓密。眼周皮肤敏感，嫁接时请使用低敏胶水。',
   },
   {
     id: 'a3',
@@ -176,6 +178,7 @@ export const mockAppointments: Appointment[] = [
     date: today,
     status: 'confirmed',
     isLate: false,
+    notes: '指甲偏薄，延长时请使用加固层。偏好法式白边，长度适中不要太长。',
   },
   {
     id: 'a5',
