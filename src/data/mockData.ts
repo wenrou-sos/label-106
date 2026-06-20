@@ -8,15 +8,16 @@ import {
   ServiceItem,
 } from '../types';
 import { formatDate, addTimeMinutes } from '../utils/dateUtils';
-import { subDays, format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { startOfWeek, addDays } from 'date-fns';
 
 const today = formatDate(new Date());
 
 const getWeekDates = (): string[] => {
   const dates: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    dates.push(formatDate(subDays(new Date(), i)));
+  const today = new Date();
+  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+  for (let i = 0; i < 7; i++) {
+    dates.push(formatDate(addDays(weekStart, i)));
   }
   return dates;
 };
@@ -264,7 +265,11 @@ const generateWeeklyAppointments = (): Appointment[] => {
     { customerId: 'c8', customerName: '陈小姐', customerPhone: '13855556666', serviceId: 's2', serviceName: '光疗美甲', serviceType: 'manicure' as const, technicianId: 't1', technicianName: '张小美', startTime: '17:30', duration: 90 },
   ];
 
-  weekDates.slice(0, 6).forEach((date, dateIndex) => {
+  const todayStr = formatDate(new Date());
+
+  weekDates.forEach((date, dateIndex) => {
+    if (date >= todayStr) return;
+
     const dayApts = templates.slice(0, 4 + (dateIndex % 4));
     dayApts.forEach((tpl, aptIndex) => {
       weeklyApts.push({

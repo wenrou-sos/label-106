@@ -112,7 +112,7 @@ export default function ServicePieChart({ data }: ServicePieChartProps) {
         </Box>
 
         <Box sx={{ width: 130, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1.5 }}>
-          {data.slice(0, 5).map((item) => {
+          {data.map((item) => {
             const percentage = totalRevenue > 0 ? Math.round((item.revenue / totalRevenue) * 100) : 0;
             return (
               <Box key={item.type} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

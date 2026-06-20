@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Appointment, AppointmentStatus, ServiceType, SERVICE_TYPE_LABELS } from '../types';
 import { allAppointments, mockServices } from '../data/mockData';
 import { isLate, calculateLateMinutes, formatDate } from '../utils/dateUtils';
-import { subDays, format } from 'date-fns';
+import { format, startOfWeek, addDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 export interface DailyRevenue {
@@ -119,18 +119,20 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
     const { appointments } = get();
     const result: DailyRevenue[] = [];
     const today = new Date();
+    const weekStart = startOfWeek(today, { weekStartsOn: 1 });
 
-    for (let i = 6; i >= 0; i--) {
-      const date = subDays(today, i);
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(weekStart, i);
       const dateStr = formatDate(date);
       const dayApts = appointments.filter(
-        (apt) => apt.date === dateStr && apt.status !== 'cancelled'
+        (apt) => apt.date === dateStr && apt.status === 'completed'
       );
       const revenue = dayApts.reduce((sum, apt) => sum + getServicePrice(apt.serviceId), 0);
+      const isToday = formatDate(today) === dateStr;
 
       result.push({
         date: dateStr,
-        label: i === 0 ? '今天' : format(date, 'EEE', { locale: zhCN }),
+        label: isToday ? '今天' : format(date, 'EEE', { locale: zhCN }),
         revenue,
       });
     }
@@ -142,7 +144,7 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
     const { appointments } = get();
     const stats = new Map<ServiceType, { count: number; revenue: number }>();
 
-    const validApts = appointments.filter((apt) => apt.status !== 'cancelled');
+    const validApts = appointments.filter((apt) => apt.status === 'completed');
 
     validApts.forEach((apt) => {
       const existing = stats.get(apt.serviceType) || { count: 0, revenue: 0 };
