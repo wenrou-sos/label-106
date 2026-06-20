@@ -36,9 +36,10 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
     })),
 
   checkLateAppointments: () => {
-    const { appointments, selectedDate, lateAppointmentIds } = get();
+    const { appointments, selectedDate, lateAppointmentIds, showLateAlert } = get();
     const now = new Date();
-    const newLateIds: string[] = [];
+
+    const currentLateIds: string[] = [];
 
     const updatedAppointments = appointments.map((apt) => {
       if (apt.date !== selectedDate) return apt;
@@ -47,8 +48,8 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
       const late = isLate(apt.startTime, apt.date, 15, now);
       const lateMins = calculateLateMinutes(apt.startTime, apt.date, now);
 
-      if (late && !apt.isLate) {
-        newLateIds.push(apt.id);
+      if (late) {
+        currentLateIds.push(apt.id);
       }
 
       return {
@@ -59,13 +60,15 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
       };
     });
 
+    const isFirstCheck = lateAppointmentIds.length === 0;
+    const newLateIds = currentLateIds.filter((id) => !lateAppointmentIds.includes(id));
     const hasNewLate = newLateIds.length > 0;
-    const allLateIds = [...new Set([...lateAppointmentIds, ...newLateIds])];
+    const shouldShowAlert = hasNewLate || (isFirstCheck && currentLateIds.length > 0 && !showLateAlert);
 
     set({
       appointments: updatedAppointments,
-      lateAppointmentIds: allLateIds,
-      showLateAlert: hasNewLate ? true : get().showLateAlert,
+      lateAppointmentIds: currentLateIds,
+      showLateAlert: shouldShowAlert ? true : get().showLateAlert,
     });
   },
 

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-import { Box, Typography, Button, LinearProgress } from '@mui/material';
-import { motion } from 'framer-motion';
-import { CloudUpload, X, Image as ImageIcon } from '@mui/icons-material';
+import { Box, Typography, Button, LinearProgress, Alert } from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CloudUpload, X, Image as ImageIcon, ErrorOutline } from '@mui/icons-material';
 import { WorkPhoto, ServiceType } from '../../types';
 
 interface PhotoUploaderProps {
@@ -9,15 +9,40 @@ interface PhotoUploaderProps {
   customerId: string;
 }
 
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export default function PhotoUploader({ onUpload, customerId }: PhotoUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const validateFile = (file: File): string | null => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return '仅支持 JPG 和 PNG 格式的图片';
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return '图片大小不能超过 10MB';
+    }
+    return null;
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    setError(null);
+
     if (file) {
+      const validationError = validateFile(file);
+      if (validationError) {
+        setError(validationError);
+        if (inputRef.current) {
+          inputRef.current.value = '';
+        }
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result as string);
@@ -166,10 +191,38 @@ export default function PhotoUploader({ onUpload, customerId }: PhotoUploaderPro
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept=".jpg,.jpeg,.png,image/jpeg,image/png"
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+          >
+            <Alert
+              severity="error"
+              icon={<ErrorOutline sx={{ fontSize: 18 }} />}
+              sx={{
+                borderRadius: '10px',
+                background: 'rgba(232, 138, 127, 0.1)',
+                color: '#D06B5E',
+                '& .MuiAlert-icon': {
+                  color: '#E88A7F',
+                },
+                fontSize: '0.8125rem',
+                py: 0.75,
+                px: 2,
+              }}
+            >
+              {error}
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Box>
   );
 }
