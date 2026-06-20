@@ -8,6 +8,19 @@ import { generateTimeSlots } from '../../utils/dateUtils';
 import { Appointment, Technician } from '../../types';
 import AppointmentCard from './AppointmentCard';
 
+const slotToMinutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+
+const isAppointmentInSlot = (apt: Appointment, slot: string): boolean => {
+  if (apt.status === 'cancelled') return false;
+  const slotMinutes = slotToMinutes(slot);
+  return (
+    slotMinutes >= slotToMinutes(apt.startTime) && slotMinutes < slotToMinutes(apt.endTime)
+  );
+};
+
 type ViewMode = 'time' | 'technician';
 
 export default function Timeline() {
@@ -23,7 +36,7 @@ export default function Timeline() {
   );
 
   const getAppointmentsForSlot = (slotStart: string): Appointment[] => {
-    return todayAppointments.filter((apt) => apt.startTime === slotStart);
+    return todayAppointments.filter((apt) => isAppointmentInSlot(apt, slotStart));
   };
 
   const getAppointmentsForTechnicianAndSlot = (
@@ -31,14 +44,18 @@ export default function Timeline() {
     slotStart: string
   ): Appointment[] => {
     return todayAppointments.filter(
-      (apt) => apt.technicianId === technicianId && apt.startTime === slotStart
+      (apt) => apt.technicianId === technicianId && isAppointmentInSlot(apt, slotStart)
     );
   };
 
   const isTechnicianAvailable = (technician: Technician, slot: string): boolean => {
     const daySchedule = getDaySchedule(technician.id, selectedDate);
     if (!daySchedule || daySchedule.isDayOff) return false;
-    return daySchedule.shifts.some((shift) => isTimeInShift(slot, shift));
+    if (!daySchedule.shifts.some((shift) => isTimeInShift(slot, shift))) return false;
+    const isBusy = todayAppointments.some(
+      (apt) => apt.technicianId === technician.id && isAppointmentInSlot(apt, slot)
+    );
+    return !isBusy;
   };
 
   const getAvailableTechniciansForSlot = (slot: string): Technician[] => {
@@ -365,30 +382,34 @@ export default function Timeline() {
                         height: 80,
                         mb: 1.5,
                         borderRadius: '12px',
-                        background: isAvailable
-                          ? apts.length > 0
-                            ? 'transparent'
-                            : 'rgba(212, 165, 116, 0.03)'
-                          : 'rgba(232, 138, 127, 0.04)',
-                        border: isAvailable
-                          ? apts.length > 0
-                            ? '1px solid transparent'
-                            : '1px dashed rgba(212, 165, 116, 0.15)'
-                          : '1px dashed rgba(232, 138, 127, 0.15)',
-                        opacity: isAvailable ? 1 : 0.5,
+                        background: apts.length > 0
+                          ? 'transparent'
+                          : isAvailable
+                            ? 'rgba(212, 165, 116, 0.03)'
+                            : 'rgba(232, 138, 127, 0.04)',
+                        border: apts.length > 0
+                          ? '1px solid transparent'
+                          : isAvailable
+                            ? '1px dashed rgba(212, 165, 116, 0.15)'
+                            : '1px dashed rgba(232, 138, 127, 0.15)',
+                        opacity: apts.length > 0 ? 1 : isAvailable ? 1 : 0.5,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: apts.length > 0 ? 'flex-start' : 'center',
                         p: apts.length > 0 ? 0 : 1,
                         transition: 'all 0.2s ease',
-                        cursor: isAvailable ? 'pointer' : 'not-allowed',
-                        '&:hover': isAvailable
-                          ? {
-                              background: apts.length > 0
-                                ? 'transparent'
-                                : 'rgba(212, 165, 116, 0.08)',
-                            }
-                          : {},
+                        cursor: apts.length > 0
+                          ? 'pointer'
+                          : isAvailable
+                            ? 'pointer'
+                            : 'not-allowed',
+                        '&:hover': apts.length > 0
+                          ? {}
+                          : isAvailable
+                            ? {
+                                background: 'rgba(212, 165, 116, 0.08)',
+                              }
+                            : {},
                       }}
                     >
                       {apts.length > 0 ? (

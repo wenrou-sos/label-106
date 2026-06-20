@@ -13,6 +13,29 @@ import {
 import { mockSchedules } from '../data/mockData';
 import { generateTimeSlots } from '../utils/dateUtils';
 
+const STORAGE_KEY = 'nail-salon-schedules';
+
+const loadSchedules = (): TechnicianSchedule[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return mockSchedules;
+};
+
+const persistSchedules = (schedules: TechnicianSchedule[]) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
+  } catch {
+    // ignore storage errors
+  }
+};
+
 const createDefaultDaySchedule = (): DaySchedule => ({
   isDayOff: false,
   shifts: [
@@ -72,7 +95,7 @@ const getDayOfWeekFromDate = (dateStr: string): DayOfWeek => {
 };
 
 export const useScheduleStore = create<ScheduleState>((set, get) => ({
-  schedules: mockSchedules,
+  schedules: loadSchedules(),
 
   getTechnicianSchedule: (technicianId: string) => {
     return get().schedules.find((s) => s.technicianId === technicianId);
@@ -118,20 +141,25 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
 
   toggleDayOff: (technicianId: string, dayOfWeek: DayOfWeek) =>
     set((state) => ({
-      schedules: state.schedules.map((s) =>
-        s.technicianId === technicianId
-          ? {
-              ...s,
-              weekSchedule: {
-                ...s.weekSchedule,
-                [dayOfWeek]: {
-                  ...s.weekSchedule[dayOfWeek],
-                  isDayOff: !s.weekSchedule[dayOfWeek].isDayOff,
-                },
-              },
-            }
-          : s
-      ),
+      schedules: state.schedules.map((s) => {
+        if (s.technicianId !== technicianId) return s;
+        const day = s.weekSchedule[dayOfWeek];
+        const newIsDayOff = !day.isDayOff;
+        return {
+          ...s,
+          weekSchedule: {
+            ...s.weekSchedule,
+            [dayOfWeek]: {
+              ...day,
+              isDayOff: newIsDayOff,
+              shifts:
+                !newIsDayOff && day.shifts.length === 0
+                  ? createDefaultDaySchedule().shifts
+                  : day.shifts,
+            },
+          },
+        };
+      }),
     })),
 
   updateShift: (technicianId: string, dayOfWeek: DayOfWeek, shiftIndex: number, shift: WorkShift) =>
@@ -156,38 +184,42 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
 
   addShift: (technicianId: string, dayOfWeek: DayOfWeek, shift: WorkShift) =>
     set((state) => ({
-      schedules: state.schedules.map((s) =>
-        s.technicianId === technicianId
-          ? {
-              ...s,
-              weekSchedule: {
-                ...s.weekSchedule,
-                [dayOfWeek]: {
-                  ...s.weekSchedule[dayOfWeek],
-                  shifts: [...s.weekSchedule[dayOfWeek].shifts, shift],
-                },
-              },
-            }
-          : s
-      ),
+      schedules: state.schedules.map((s) => {
+        if (s.technicianId !== technicianId) return s;
+        const day = s.weekSchedule[dayOfWeek];
+        const newShifts = [...day.shifts, shift];
+        return {
+          ...s,
+          weekSchedule: {
+            ...s.weekSchedule,
+            [dayOfWeek]: {
+              ...day,
+              shifts: newShifts,
+              isDayOff: newShifts.length === 0,
+            },
+          },
+        };
+      }),
     })),
 
   removeShift: (technicianId: string, dayOfWeek: DayOfWeek, shiftIndex: number) =>
     set((state) => ({
-      schedules: state.schedules.map((s) =>
-        s.technicianId === technicianId
-          ? {
-              ...s,
-              weekSchedule: {
-                ...s.weekSchedule,
-                [dayOfWeek]: {
-                  ...s.weekSchedule[dayOfWeek],
-                  shifts: s.weekSchedule[dayOfWeek].shifts.filter((_, i) => i !== shiftIndex),
-                },
-              },
-            }
-          : s
-      ),
+      schedules: state.schedules.map((s) => {
+        if (s.technicianId !== technicianId) return s;
+        const day = s.weekSchedule[dayOfWeek];
+        const newShifts = day.shifts.filter((_, i) => i !== shiftIndex);
+        return {
+          ...s,
+          weekSchedule: {
+            ...s.weekSchedule,
+            [dayOfWeek]: {
+              ...day,
+              shifts: newShifts,
+              isDayOff: newShifts.length === 0,
+            },
+          },
+        };
+      }),
     })),
 
   resetToDefault: (technicianId: string) =>
@@ -202,5 +234,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       ),
     })),
 }));
+
+useScheduleStore.subscribe((state) => persistSchedules(state.schedules));
 
 export { createDefaultDaySchedule, createDefaultWeekSchedule, isTimeInShift, getDayOfWeekFromDate };

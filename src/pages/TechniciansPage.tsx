@@ -1,12 +1,12 @@
 import { Box, Typography, Grid } from '@mui/material';
 import { motion } from 'framer-motion';
-import { useTechnicianStore } from '../store/technicianStore';
 import TechnicianCard from '../components/technicians/TechnicianCard';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
+import { useLiveTechnicians } from '../hooks/useLiveTechnicians';
 import { People, TrendingUp, AttachMoney, Spa } from '@mui/icons-material';
 
 export default function TechniciansPage() {
-  const { technicians } = useTechnicianStore();
+  const technicians = useLiveTechnicians();
 
   const totalCompleted = technicians.reduce((sum, t) => sum + t.todayCompletedCount, 0);
   const totalRevenue = technicians.reduce((sum, t) => sum + t.todayRevenue, 0);

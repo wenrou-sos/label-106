@@ -1,7 +1,6 @@
 import { Box, Typography, Grid, Chip } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useAppointmentStore } from '../store/appointmentStore';
-import { useTechnicianStore } from '../store/technicianStore';
 import Timeline from '../components/appointments/Timeline';
 import TechnicianCard from '../components/technicians/TechnicianCard';
 import LateAlertModal from '../components/appointments/LateAlertModal';
@@ -10,13 +9,14 @@ import RevenueChart from '../components/dashboard/RevenueChart';
 import ServicePieChart from '../components/dashboard/ServicePieChart';
 import { CalendarToday, TrendingUp, People, AttachMoney } from '@mui/icons-material';
 import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
+import { useLiveTechnicians } from '../hooks/useLiveTechnicians';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 export default function DashboardPage() {
   const { appointments, selectedDate, getWeeklyRevenue, getServiceStats, getTodayOverview } =
     useAppointmentStore();
-  const { technicians } = useTechnicianStore();
+  const technicians = useLiveTechnicians();
 
   const todayAppointments = appointments.filter((apt) => apt.date === selectedDate);
   const completedToday = todayAppointments.filter((apt) => apt.status === 'completed').length;
